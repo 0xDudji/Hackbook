@@ -44,10 +44,17 @@
   "routing": {
     "prefix": "/docs"
   },
+  "navbar": {
+    "primary": {
+      "type": "button",
+      "label": "Home",
+      "href": "https://dudji.com"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Home",
+        "tab": "Overview",
         "groups": [
           {
             "group": "Home",
