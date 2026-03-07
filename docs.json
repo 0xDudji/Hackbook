@@ -72,9 +72,7 @@
           {
             "group": "Enumeration",
             "root": "playbook/enumeration/index",
-            "pages": [
-              "playbook/enumeration/web-enumeration"
-            ]
+            "pages": ["playbook/enumeration/web-enumeration"]
           },
           {
             "group": "Exploitation",
@@ -165,60 +163,7 @@
           {
             "group": "Tools",
             "root": "tools/index",
-            "pages": [
-              "tools/nmap",
-              "tools/burp-suite",
-              "tools/metasploit"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Writeups",
-        "url": "writeups/index",
-        "groups": [
-          {
-            "group": "Writeups",
-            "root": "writeups/index",
-            "pages": []
-          },
-          {
-            "group": "Machines",
-            "root": "writeups/machines/index",
-            "pages": [
-              {
-                "group": "HTB - Seasonal",
-                "root": "writeups/machines/HTB-Seasonal/index",
-                "pages": [
-                  {
-                    "group": "Season 10",
-                    "root": "writeups/machines/HTB-Seasonal/Season-10/index",
-                    "pages": [
-                      {
-                        "group": "Interpreter",
-                        "root": "writeups/machines/HTB-Seasonal/Season-10/interpreter",
-                        "pages": [
-                          "writeups/machines/HTB-Seasonal/Season-10/interpreter/enumeration",
-                          "writeups/machines/HTB-Seasonal/Season-10/interpreter/foothold",
-                          "writeups/machines/HTB-Seasonal/Season-10/interpreter/lateral-movement",
-                          "writeups/machines/HTB-Seasonal/Season-10/interpreter/privilege-escalation"
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "group": "Challenges",
-            "root": "writeups/Challenges/index",
-            "pages": []
-          },
-          {
-            "group": "CTFs",
-            "root": "writeups/CTFs/index",
-            "pages": []
+            "pages": ["tools/nmap", "tools/burp-suite", "tools/metasploit"]
           }
         ]
       }
@@ -238,7 +183,8 @@
         "header": "Dudji",
         "items": [
           { "label": "Home", "href": "https://dudji.com" },
-          { "label": "Contact", "href": "https://dudji.com/contact" }
+          { "label": "Contact", "href": "https://dudji.com/contact" },
+          { "label": "Writeups", "href": "https://writeups.dudji.com" }
         ]
       },
       {
@@ -249,14 +195,6 @@
           { "label": "Tech", "href": "/docs/tech" },
           { "label": "Payloads", "href": "/docs/payloads" },
           { "label": "Tools", "href": "/docs/tools" }
-        ]
-      },
-      {
-        "header": "Writeups",
-        "items": [
-          { "label": "Machines", "href": "/docs/writeups/machines" },
-          { "label": "Challenges", "href": "/docs/writeups/challenges" },
-          { "label": "CTFs", "href": "/docs/writeups/ctfs" }
         ]
       }
     ],
