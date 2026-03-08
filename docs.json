@@ -180,10 +180,10 @@
       {
         "header": "Dudji",
         "items": [
-          { "label": "Home", "href": "https://dudji.com" },
-          { "label": "Contact", "href": "https://dudji.com/contact" },
-          { "label": "Writeups", "href": "https://writeups.dudji.com" },
-          { "label": "Books", "href": "https://Books.Dudji.com" }
+          { "label": "Home", "href": "https://Dudji.com" },
+          { "label": "Contact", "href": "https://Dudji.com/contact" },
+          { "label": "Writeups", "href": "https://Writeups.Dudji.com" },
+          { "label": "Academy", "href": "https://Academy.Dudji.com" }
         ]
       },
       {
