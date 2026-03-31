@@ -1,0 +1,263 @@
+---
+title: "Infrastructure Based Enumeration"
+description: "Map the external and internal infrastructure footprint before deep host probing."
+---
+
+## Domain Information
+
+Start by mapping the organization's public footprint from a black-box perspective.
+
+<Note>
+  Results in labs and real engagements will differ. Use these examples as a
+  methodology reference, not as exact expected output.
+</Note>
+
+### Online Presence
+
+Useful first-pass sources:
+
+- TLS certificates (main domain and SANs)
+- Certificate Transparency logs (`crt.sh`)
+- DNS records (`A`, `MX`, `NS`, `TXT`, `SOA`)
+
+Example CT query:
+
+```text
+https://www.crt.sh/?q=inlanefreight.com
+```
+
+Typical certificate clues to capture:
+
+- certificate validity period
+- SAN entries (`www`, `support`, `api`, etc.)
+- issuer/provider patterns across subdomains
+
+JSON output:
+
+```shellsession
+curl -s https://crt.sh/\?q\=inlanefreight.com\&output\=json | jq .
+```
+
+Example fields worth extracting:
+
+```json
+{
+  "issuer_name": "C=US, O=Let's Encrypt, CN=R3",
+  "common_name": "matomo.inlanefreight.com",
+  "name_value": "matomo.inlanefreight.com",
+  "entry_timestamp": "2021-08-21T06:00:17.173",
+  "not_after": "2021-11-19T05:00:15"
+}
+```
+
+Unique subdomain extraction:
+
+```shellsession
+curl -s https://crt.sh/\?q\=inlanefreight.com\&output\=json | jq . | grep name | cut -d":" -f2 | grep -v "CN=" | cut -d'"' -f2 | awk '{gsub(/\\n/,"\n");}1;' | sort -u
+```
+
+Example resulting domains:
+
+```text
+account.ttn.inlanefreight.com
+blog.inlanefreight.com
+matomo.inlanefreight.com
+smartfactory.inlanefreight.com
+ttn.inlanefreight.com
+www.inlanefreight.com
+```
+
+### Company-Hosted vs Third-Party Hosts
+
+Distinguish infrastructure you are allowed to test from third-party assets.
+
+```shellsession
+for i in $(cat subdomainlist);do host $i | grep "has address" | grep inlanefreight.com | cut -d" " -f1,4;done
+```
+
+Example output:
+
+```text
+blog.inlanefreight.com 10.129.24.93
+inlanefreight.com 10.129.27.33
+matomo.inlanefreight.com 10.129.127.22
+www.inlanefreight.com 10.129.127.33
+s3-website-us-west-2.amazonaws.com 10.129.95.250
+```
+
+Use the resulting IPs for passive enrichment (for example, Shodan) before active validation.
+
+```shellsession
+for i in $(cat subdomainlist);do host $i | grep "has address" | grep inlanefreight.com | cut -d" " -f4 >> ip-addresses.txt;done
+for i in $(cat ip-addresses.txt);do shodan host $i;done
+```
+
+Example enrichment snapshot:
+
+```text
+10.129.27.33
+Organization: InlaneFreight
+Open ports: 22/tcp, 80/tcp, 443/tcp
+
+10.129.27.22
+Open ports: 25,53,80,81,110,111,443,444
+```
+
+### DNS Records
+
+```shellsession
+dig any inlanefreight.com
+```
+
+Example record slice:
+
+```text
+inlanefreight.com. 300 IN A   10.129.27.33
+inlanefreight.com. 3600 IN MX 1 aspmx.l.google.com.
+inlanefreight.com. 21600 IN NS ns.inwx.net.
+inlanefreight.com. 3600 IN TXT "atlassian-domain-verification=..."
+inlanefreight.com. 300 IN TXT "v=spf1 include:mailgun.org ..."
+```
+
+What to extract quickly:
+
+- `A`: domain-to-IP mappings
+- `MX`: email provider path
+- `NS`: hosting/provider hints
+- `TXT`: verifications + email security controls (`SPF`, `DMARC`, `DKIM`)
+- `SOA`: zone authority metadata
+
+High-value clue mapping:
+
+| Clue Type                                        | Why It Matters                                               |
+| ------------------------------------------------ | ------------------------------------------------------------ |
+| Atlassian / Google / Outlook / Mailgun / LogMeIn | Reveals core business stack and third-party trust boundaries |
+| SPF IPs in TXT records                           | Can expose additional infrastructure IPs                     |
+| NS provider names                                | Helps infer DNS/hosting architecture                         |
+
+Quick provider/IP extraction from TXT values can reveal hidden service dependencies worth tracking in your recon notes.
+
+## Cloud Resources
+
+Cloud platforms (AWS, Azure, GCP) are standard, but tenant-side misconfiguration can expose data.
+
+Common exposure targets:
+
+- AWS S3 buckets
+- Azure Blob storage
+- GCP Cloud Storage
+
+### Discovery Paths
+
+- DNS/host outputs that reveal cloud endpoints
+- Search indexing of public cloud files
+- Website source code referencing cloud assets
+- Third-party domain/cloud enrichment platforms
+
+Useful search patterns (examples):
+
+```text
+intext:<company> inurl:amazonaws.com
+intext:<company> inurl:blob.core.windows.net
+```
+
+Example cloud clue in host output:
+
+```shellsession
+... s3-website-us-west-2.amazonaws.com ...
+```
+
+Also inspect front-end source for externally loaded assets (JS/CSS/media) that point to cloud object stores.
+
+### Practical Workflow
+
+1. Collect candidate storage endpoints passively.
+2. Pivot with company names and known abbreviations.
+3. Filter by file type and recency.
+4. Build a prioritized validation list inside scope.
+
+Common recon pivot targets:
+
+- bucket/container naming conventions
+- environment labels (`dev`, `prod`, `backup`, `archive`)
+- file extensions (`.pdf`, `.docx`, `.zip`, `.json`, `.pem`, `.key`)
+
+### Risk Signal
+
+Operational pressure often causes accidental public exposure of sensitive files.
+
+Real-world examples include exposed key material, internal documents, or config exports in cloud storage indexes.
+
+<Warning>
+  Treat discovered sensitive artifacts as high-severity evidence. Stay inside
+  authorized scope and follow reporting/disclosure rules.
+</Warning>
+
+## Staff
+
+Employee OSINT helps infer technology stack, delivery model, and security maturity.
+
+Primary sources:
+
+- LinkedIn/Xing profiles
+- public job postings
+- public repositories and shared technical content
+
+### Job Post Intelligence
+
+Job requirements can quickly reveal probable stack components:
+
+- languages: Java, C#, C++, Python, Ruby, PHP, Perl
+- databases: PostgreSQL, MySQL, SQL Server, Oracle
+- frameworks: Flask, Django, Spring, ASP.NET MVC
+- tooling: Git/SVN/Perforce, Atlassian suite, CI/CD
+
+Example extraction workflow from a single job post:
+
+1. collect languages and framework requirements
+2. map likely backend and data layers
+3. identify CI/CD and collaboration tooling
+4. infer probable attack surface families (web, API, auth, data)
+
+### Profile and Repository Signals
+
+Common recon value:
+
+- framework preferences (front-end/back-end)
+- architecture patterns and domain focus
+- public code quality and accidental metadata leakage
+
+Signals to bookmark:
+
+- explicit mentions of React/Svelte/Angular/Flask/Django/etc.
+- links to personal or org repositories
+- project descriptions tied to internal systems (CRM, broker portals, analytics)
+
+Potential exposure indicators:
+
+- personal/work email leakage
+- hardcoded secrets/tokens in shared code
+- sensitive internal context in project artifacts
+
+Typical leaks seen during staff OSINT:
+
+- personal email addresses reused in commits
+- copied secrets/tokens in sample code
+- verbose stack traces or configuration fragments in public snippets
+
+### Search Strategy
+
+When your goal is infrastructure mapping, prioritize profiles from:
+
+- engineering/development
+- platform/infrastructure
+- security/operations
+
+Use filters (location, title, company, industry) to reduce noise and improve signal quality.
+
+Recommended output from this phase:
+
+- prioritized employee-role list
+- inferred technology stack map
+- tooling/provider dependency map
+- potential social-engineering and credential-risk observations for reporting

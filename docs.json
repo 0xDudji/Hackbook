@@ -73,12 +73,16 @@
           {
             "group": "Recon",
             "root": "playbook/recon/index",
-            "pages": []
+            "pages": ["playbook/recon/infrastructure-based-enumeration"]
           },
           {
             "group": "Enumeration",
             "root": "playbook/enumeration/index",
-            "pages": ["playbook/enumeration/web-enumeration"]
+            "pages": [
+              "playbook/enumeration/web-enumeration",
+              "playbook/enumeration/host-enumeration",
+              "playbook/enumeration/remote-management-protocol-enumeration"
+            ]
           },
           {
             "group": "Exploitation",
@@ -140,7 +144,8 @@
               "tech/linux/system-fundamentals",
               "tech/linux/authentication-authorization",
               "tech/linux/system-services",
-              "tech/linux/storage-devices"
+              "tech/linux/storage-devices",
+              "tech/linux/bash-scripting"
             ]
           }
         ]
@@ -162,6 +167,21 @@
           {
             "group": "Overview",
             "pages": ["tools/index"]
+          },
+          {
+            "group": "Network Scanning",
+            "root": "tools/network-scanning/index",
+            "pages": ["tools/nmap"]
+          },
+          {
+            "group": "Web Testing",
+            "root": "tools/web-testing/index",
+            "pages": ["tools/burp-suite"]
+          },
+          {
+            "group": "Exploitation Frameworks",
+            "root": "tools/exploitation-frameworks/index",
+            "pages": ["tools/metasploit"]
           }
         ]
       }
